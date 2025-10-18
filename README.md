@@ -13,7 +13,7 @@
 
 Search Currents transforms billions of Google search queries into electromagnetic rivers of attention. Trending topics create vortices, rising trends generate heat, and the zeitgeist emerges as visible field lines in computational noise—all powered by real-time data and high-performance WebAssembly.
 
-**Live Demo:** [Coming Soon]
+**Live Demo:** [https://generative-art-live-trends.netlify.app](https://generative-art-live-trends.netlify.app)
 
 ---
 
@@ -332,6 +332,51 @@ pub fn calculate_visual_params(volume: u32, velocity: i32) -> JsValue {
 cd trends-wasm
 wasm-pack build --target web --out-dir pkg
 ```
+
+---
+
+## 🌐 Deploying to Netlify
+
+This project is production-ready for Netlify deployment with **real Google Trends API integration**.
+
+### Quick Deploy
+
+1. **Push to GitHub** (you've already done this!)
+2. **Connect to Netlify**
+   - Go to: https://app.netlify.com
+   - Click "Add new site" → "Import an existing project"
+   - Select your GitHub repo: `generative-art-live-trends`
+3. **Auto-deploy** - Netlify uses `netlify.toml` configuration
+4. **Live in 5 minutes!**
+
+### What Gets Deployed
+
+✅ **Real Google Trends Data** - No more mock data!
+✅ **Serverless API** - Python function at `/api/trends`
+✅ **WASM Auto-Build** - Rust compiled during deployment
+✅ **Zero CORS Issues** - Same-origin requests
+✅ **Global CDN** - Fast worldwide
+
+### API Endpoint
+
+Once deployed, your site has:
+
+```bash
+GET https://your-site.netlify.app/api/trends?region=US&count=10
+```
+
+Returns real Google Trends data in JSON format.
+
+**Supported Regions:** US, GB, CA, AU, DE, FR, JP, IN
+
+### Detailed Guide
+
+See [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md) for:
+- Manual configuration settings
+- Environment variables (none required!)
+- Build process explanation
+- Troubleshooting tips
+- Cost breakdown (free tier works!)
 
 ---
 

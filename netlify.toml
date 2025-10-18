@@ -1,0 +1,50 @@
+[build]
+  # Build command for WASM compilation
+  command = "cd trends-wasm && cargo install wasm-pack && wasm-pack build --target web --out-dir pkg"
+
+  # Publish directory
+  publish = "."
+
+  # Functions directory
+  functions = "netlify/functions"
+
+# Python runtime for serverless functions
+[functions]
+  python_version = "3.9"
+
+# Redirect rules
+[[redirects]]
+  from = "/api/trends"
+  to = "/.netlify/functions/trends"
+  status = 200
+
+# Default index page
+[[redirects]]
+  from = "/"
+  to = "/search_currents.html"
+  status = 200
+
+# SPA fallback (if needed)
+[[redirects]]
+  from = "/*"
+  to = "/search_currents.html"
+  status = 404
+
+# Headers for CORS and caching
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/trends-wasm/pkg/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"

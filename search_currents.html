@@ -443,37 +443,38 @@
         let fadeAlpha;
 
         // ═══════════════════════════════════════════════════════════════════════
-        // MOCK DATA (until WASM backend is implemented)
+        // REAL GOOGLE TRENDS API INTEGRATION
         // ═══════════════════════════════════════════════════════════════════════
 
-        function fetchTrendsData() {
+        async function fetchTrendsData() {
             const statusEl = document.getElementById('data-status');
             const statusText = document.getElementById('status-text');
             const trendsList = document.getElementById('trends-list');
 
             statusEl.classList.add('loading');
+            statusEl.classList.remove('error');
             statusText.textContent = 'Fetching live Google Trends...';
             trendsList.innerHTML = '';
 
-            // TODO: Replace with actual WASM call
-            setTimeout(() => {
+            try {
+                // Call Netlify serverless function
+                const response = await fetch('/api/trends?region=US&count=12');
+
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}`);
+                }
+
+                const data = await response.json();
+
                 trendsData = {
-                    trends: [
-                        { query: 'AI developments', volume: 100, velocity: 85, category: 'Technology' },
-                        { query: 'Climate summit 2025', volume: 78, velocity: -12, category: 'News' },
-                        { query: 'New movie releases', volume: 92, velocity: 45, category: 'Entertainment' },
-                        { query: 'Cryptocurrency markets', volume: 65, velocity: -28, category: 'Finance' },
-                        { query: 'Space exploration', volume: 54, velocity: 22, category: 'Science' },
-                        { query: 'Election results', volume: 88, velocity: 67, category: 'Politics' },
-                        { query: 'Health guidelines', volume: 43, velocity: -5, category: 'Health' },
-                        { query: 'Sports championships', volume: 71, velocity: 34, category: 'Sports' }
-                    ],
-                    timestamp: new Date().toISOString(),
+                    trends: data.trends,
+                    timestamp: data.timestamp,
+                    region: data.region,
                     loaded: true
                 };
 
                 statusEl.classList.remove('loading');
-                statusText.textContent = `Loaded ${trendsData.trends.length} trends at ${new Date().toLocaleTimeString()}`;
+                statusText.textContent = `✅ Loaded ${trendsData.trends.length} live trends from Google (${data.region})`;
 
                 trendsList.innerHTML = trendsData.trends.slice(0, 5).map(t =>
                     `<div class="trend-item"><strong>${t.query}</strong> (${t.volume > 75 ? 'High' : t.volume > 50 ? 'Med' : 'Low'} ${t.velocity > 0 ? '↗' : t.velocity < 0 ? '↘' : '→'})</div>`
@@ -483,7 +484,17 @@
                 if (typeof initializeSystem === 'function') {
                     initializeSystem();
                 }
-            }, 1200);
+
+            } catch (error) {
+                console.error('Failed to fetch trends:', error);
+
+                statusEl.classList.remove('loading');
+                statusEl.classList.add('error');
+                statusText.textContent = `❌ Error: ${error.message}`;
+
+                // Show error in trends list
+                trendsList.innerHTML = `<div class="trend-item" style="color: #d75757;">Failed to fetch live trends. Please try again.</div>`;
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
