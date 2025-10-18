@@ -41,3 +41,7 @@ $RECYCLE.BIN/
 
 # Optional: Uncomment if you want users to build WASM themselves
 # trends-wasm/pkg/
+
+# Environment variables
+.env
+.env.local
