@@ -8,10 +8,6 @@
   # Functions directory
   functions = "netlify/functions"
 
-# Python runtime for serverless functions
-[functions]
-  python_version = "3.9"
-
 # Redirect rules
 [[redirects]]
   from = "/api/trends"
