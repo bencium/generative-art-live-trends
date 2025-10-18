@@ -1,6 +1,6 @@
 [build]
-  # Build command for WASM compilation
-  command = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env && cd trends-wasm && cargo install wasm-pack && wasm-pack build --target web --out-dir pkg"
+  # Temporarily skip WASM build to test Python function
+  command = "echo 'Skipping WASM build for now'"
 
   # Publish directory
   publish = "."
