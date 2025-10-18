@@ -1,0 +1,19 @@
+{
+  "name": "trends-wasm",
+  "type": "module",
+  "collaborators": [
+    "Google Trends Visualizer"
+  ],
+  "description": "WASM module for fetching and processing Google Trends data",
+  "version": "0.1.0",
+  "files": [
+    "trends_wasm_bg.wasm",
+    "trends_wasm.js",
+    "trends_wasm.d.ts"
+  ],
+  "main": "trends_wasm.js",
+  "types": "trends_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
