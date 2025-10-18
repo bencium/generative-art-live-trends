@@ -1,6 +1,7 @@
 [build]
-  # Build WASM module before deploying
-  command = "curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && cd trends-wasm && wasm-pack build --target web"
+  # WASM module is pre-built and committed to repo
+  # No build command needed - just deploy static files
+  command = "echo 'Using pre-built WASM module'"
 
   # Publish directory
   publish = "."
