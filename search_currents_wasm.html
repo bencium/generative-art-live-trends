@@ -511,6 +511,8 @@
         let cols, rows;
         let scl = 12;
         let fadeAlpha;
+        let trendPositions = []; // Store vortex center positions for labels
+        let hoveredTrend = -1; // Index of currently hovered trend
 
         // Cache for offline viewing
         const CACHE_KEY = 'search_currents_cache';
@@ -533,7 +535,7 @@
                     throw new Error('WASM module not loaded');
                 }
 
-                const wasmData = window.wasmModule.generate_mock_trends(12);
+                const wasmData = window.wasmModule.generate_mock_trends(25);
                 const processed = window.wasmModule.process_trends(wasmData);
 
                 trendsData = {
@@ -570,32 +572,43 @@
             const trendsList = document.getElementById('trends-list');
 
             statusEl.classList.add('loading');
-            statusText.textContent = 'Fetching live Google Trends RSS...';
+            statusText.textContent = 'Fetching global trends from API...';
             trendsList.innerHTML = '';
 
             try {
-                if (!window.wasmLoaded) {
-                    throw new Error('WASM module not loaded');
+                const response = await fetch('/api/trends?count=20');
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
                 }
 
-                const client = new window.wasmModule.TrendsClient("US");
-                const wasmData = await client.fetch_daily_trends();
+                const data = await response.json();
+
+                // Filter out Sports and Entertainment (backend should do this, but double-check)
+                const filteredTrends = data.trends.filter(t =>
+                    t.category !== 'Sports' && t.category !== 'Entertainment'
+                ).slice(0, 20);
 
                 trendsData = {
-                    trends: wasmData.trends,
-                    timestamp: wasmData.timestamp,
-                    region: wasmData.region,
-                    loaded: true
+                    trends: filteredTrends,
+                    timestamp: data.timestamp,
+                    region: data.region,
+                    loaded: true,
+                    source: data.source,
+                    regions_fetched: data.regions_fetched || []
                 };
 
                 // Save to cache
                 saveTrendsToCache(trendsData);
 
                 statusEl.classList.remove('loading');
-                statusText.textContent = `✅ Loaded ${trendsData.trends.length} live trends from Google`;
+                const regionsInfo = trendsData.regions_fetched.length > 0
+                    ? ` from ${trendsData.regions_fetched.length} regions`
+                    : '';
+                statusText.textContent = `✅ Loaded ${trendsData.trends.length} global trends${regionsInfo}`;
 
                 trendsList.innerHTML = trendsData.trends.slice(0, 6).map(t =>
-                    `<div class="trend-item"><strong>${t.query}</strong> (${t.category})</div>`
+                    `<div class="trend-item"><strong>${t.query}</strong> (${t.category}${t.region ? ', ' + t.region : ''})</div>`
                 ).join('');
 
                 if (typeof initializeSystem === 'function') {
@@ -604,7 +617,7 @@
             } catch (error) {
                 statusEl.classList.remove('loading');
                 statusEl.classList.add('error');
-                statusText.textContent = '❌ CORS Error: Trying cached data...';
+                statusText.textContent = '❌ API Error: Trying cached data...';
 
                 // Try loading from cache
                 const cached = loadTrendsFromCache();
@@ -619,10 +632,10 @@
                         initializeSystem();
                     }
                 } else {
-                    statusText.textContent = '❌ CORS blocked. Use "Mock Data" or check console.';
+                    statusText.textContent = '❌ Failed to load. Use "Mock Data" or check console.';
                 }
 
-                console.error('Live fetch error (CORS expected):', error);
+                console.error('API fetch error:', error);
             }
         }
 
@@ -657,6 +670,11 @@
         // ═══════════════════════════════════════════════════════════════════════
 
         function setup() {
+            // Clear canvas container completely
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = '';
+
+            // Create and add canvas
             let canvas = createCanvas(1200, 1200);
             canvas.parent('canvas-container');
 
@@ -674,8 +692,6 @@
             }
 
             initializeSystem();
-
-            document.querySelector('.loading').style.display = 'none';
         }
 
         function initializeSystem() {
@@ -698,7 +714,30 @@
 
         function generateFlowField() {
             flowField = [];
+            trendPositions = []; // Reset trend positions
             let zoff = 0;
+
+            // Calculate and store trend vortex positions first
+            if (trendsData.loaded && trendsData.trends.length > 0) {
+                trendsData.trends.forEach((trend, trendIndex) => {
+                    // Use random() to get seed-based position (will change with each seed)
+                    let trendX = floor(random(cols));
+                    let trendY = floor(random(rows));
+
+                    // Convert grid position to canvas coordinates
+                    trendPositions.push({
+                        x: trendX * scl,
+                        y: trendY * scl,
+                        gridX: trendX,
+                        gridY: trendY,
+                        query: trend.query,
+                        volume: trend.volume,
+                        velocity: trend.velocity,
+                        category: trend.category,
+                        index: trendIndex
+                    });
+                });
+            }
 
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
@@ -706,15 +745,13 @@
                     let angle = noise(x * params.noiseScale, y * params.noiseScale, zoff) * TWO_PI * 4;
 
                     if (trendsData.loaded && trendsData.trends.length > 0) {
-                        trendsData.trends.forEach(trend => {
-                            let trendX = (trend.query.charCodeAt(0) * 37 + trend.query.length * 13) % cols;
-                            let trendY = (trend.query.charCodeAt(trend.query.length - 1) * 29) % rows;
-
-                            let dist = Math.sqrt(Math.pow(x - trendX, 2) + Math.pow(y - trendY, 2));
+                        trendPositions.forEach(trendPos => {
+                            let dist = Math.sqrt(Math.pow(x - trendPos.gridX, 2) + Math.pow(y - trendPos.gridY, 2));
+                            let trend = trendsData.trends[trendPos.index];
                             let influence = (trend.volume / 100) * params.trendInfluence;
 
                             if (dist < 30) {
-                                let vortexAngle = atan2(y - trendY, x - trendX);
+                                let vortexAngle = atan2(y - trendPos.gridY, x - trendPos.gridX);
                                 let vortexStrength = (1 - dist / 30) * influence;
                                 vortexAngle += (trend.velocity > 0 ? 1 : -1) * vortexStrength;
                                 angle += vortexAngle * 0.3;
@@ -740,6 +777,59 @@
                 particle.edges();
                 particle.show();
             }
+
+            // Render trend labels at vortex centers
+            if (trendPositions.length > 0) {
+                renderTrendLabels();
+            }
+        }
+
+        function renderTrendLabels() {
+            textAlign(CENTER, CENTER);
+
+            trendPositions.forEach((pos, index) => {
+                // Check if mouse is hovering over this trend
+                const dist = Math.sqrt(Math.pow(mouseX - pos.x, 2) + Math.pow(mouseY - pos.y, 2));
+                const isHovered = dist < 60; // Hover radius
+
+                if (isHovered) {
+                    // HOVERED: Show detailed label with background
+                    hoveredTrend = index;
+
+                    textSize(14);
+                    const textWidth = pos.query.length * 7.5;
+
+                    // Draw enhanced background for readability
+                    fill(20, 20, 19, 220);
+                    noStroke();
+                    rect(pos.x - textWidth / 2 - 8, pos.y - 22, textWidth + 16, 44, 6);
+
+                    // Draw label text (larger)
+                    fill(250, 249, 245);
+                    noStroke();
+                    text(pos.query, pos.x, pos.y - 6);
+
+                    // Draw volume/velocity indicator
+                    textSize(10);
+                    fill(176, 174, 165);
+                    const indicator = `Vol: ${pos.volume} | Vel: ${pos.velocity > 0 ? '+' : ''}${pos.velocity}`;
+                    text(indicator, pos.x, pos.y + 10);
+                } else {
+                    // ALWAYS VISIBLE: Show simple label
+                    textSize(11);
+
+                    // Simple semi-transparent background
+                    const textWidth = pos.query.length * 6;
+                    fill(20, 20, 19, 150);
+                    noStroke();
+                    rect(pos.x - textWidth / 2 - 4, pos.y - 8, textWidth + 8, 16, 3);
+
+                    // Draw label text
+                    fill(250, 249, 245, 230);
+                    noStroke();
+                    text(pos.query, pos.x, pos.y);
+                }
+            });
         }
 
         class Particle {

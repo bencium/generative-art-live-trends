@@ -137,7 +137,7 @@ impl TrendsClient {
         }
 
         Ok(TrendsData {
-            trends: trends.into_iter().take(15).collect(),  // Top 15 trends
+            trends: trends.into_iter().take(25).collect(),  // Top 25 trends
             timestamp: js_sys::Date::new_0().to_iso_string().into(),
             region: self.region.clone(),
         })
@@ -150,19 +150,29 @@ pub fn generate_mock_trends(count: usize) -> Result<JsValue, JsValue> {
     let queries = vec![
         ("AI developments", "Technology"),
         ("Climate summit 2025", "News"),
-        ("New movie releases", "Entertainment"),
         ("Cryptocurrency markets", "Finance"),
         ("Space exploration", "Science"),
         ("Election results", "Politics"),
         ("Health guidelines", "Health"),
-        ("Sports championships", "Sports"),
         ("Tech IPO news", "Business"),
-        ("Music festival lineup", "Entertainment"),
         ("Gaming console launch", "Technology"),
         ("Scientific breakthrough", "Science"),
         ("Food trends 2025", "Lifestyle"),
         ("Travel destinations", "Travel"),
         ("Fashion week highlights", "Fashion"),
+        ("Renewable energy breakthrough", "Science"),
+        ("Global economic outlook", "Business"),
+        ("Medical research advances", "Health"),
+        ("Smart city initiatives", "Technology"),
+        ("Humanitarian crisis response", "News"),
+        ("Cybersecurity threats", "Technology"),
+        ("Housing market trends", "Finance"),
+        ("Educational reform debate", "Politics"),
+        ("Autonomous vehicle testing", "Technology"),
+        ("Wildfire season updates", "News"),
+        ("Plant-based nutrition", "Lifestyle"),
+        ("Arctic ice melt data", "Science"),
+        ("Inflation rate changes", "Finance"),
     ];
 
     let trends: Vec<Trend> = queries

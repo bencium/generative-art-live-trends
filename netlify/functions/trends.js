@@ -5,11 +5,92 @@
 const { getJson } = require('serpapi');
 const https = require('https');
 
+// Fetch trends from multiple regions and combine them
+async function fetchGlobalTrends(apiKey, count) {
+  const regions = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'JP', 'IN'];
+  const allTrends = [];
+  const successfulRegions = [];
+
+  // Fetch from all regions in parallel
+  const regionPromises = regions.map(async (region) => {
+    try {
+      const response = await getJson({
+        engine: "google_trends_trending_now",
+        geo: region,
+        hours: 24,
+        api_key: apiKey
+      });
+
+      const trendingSearches = response.trending_searches || [];
+      successfulRegions.push(region);
+
+      return trendingSearches.slice(0, 5).map((item, index) => {
+        const query = item.query || 'Unknown';
+        const searchVolume = item.search_volume || 0;
+        const increasePercentage = item.increase_percentage || 0;
+
+        const volume = Math.min(100, Math.max(20, Math.floor((searchVolume / 10000) * 20) + 80 - (index * 3)));
+        const velocity = Math.min(100, Math.max(-100, Math.floor((increasePercentage / 10)) - 50));
+
+        const category = item.categories && item.categories.length > 0
+          ? item.categories[0].name
+          : categorizeQuery(query);
+
+        return {
+          query: query,
+          volume: volume,
+          velocity: velocity,
+          category: category,
+          region: region,
+          searchVolume: searchVolume,
+          increasePercentage: increasePercentage
+        };
+      });
+    } catch (error) {
+      console.error(`Failed to fetch trends from ${region}:`, error.message);
+      return [];
+    }
+  });
+
+  // Wait for all region fetches to complete
+  const results = await Promise.all(regionPromises);
+
+  // Flatten and combine all trends
+  results.forEach(regionTrends => {
+    allTrends.push(...regionTrends);
+  });
+
+  // Deduplicate by query (case-insensitive)
+  const uniqueTrends = [];
+  const seenQueries = new Set();
+
+  for (const trend of allTrends) {
+    const queryLower = trend.query.toLowerCase();
+    if (!seenQueries.has(queryLower)) {
+      seenQueries.add(queryLower);
+      uniqueTrends.push(trend);
+    }
+  }
+
+  // Filter out Sports and Entertainment categories
+  const filteredTrends = uniqueTrends.filter(trend =>
+    trend.category !== 'Sports' && trend.category !== 'Entertainment'
+  );
+
+  // Sort by volume (descending) and take top N
+  filteredTrends.sort((a, b) => b.volume - a.volume);
+  const topTrends = filteredTrends.slice(0, count);
+
+  return {
+    trends: topTrends,
+    regions: successfulRegions
+  };
+}
+
 exports.handler = async function(event, context) {
   // Parse query parameters
   const params = event.queryStringParameters || {};
-  const region = (params.region || 'US').toUpperCase();
-  const count = Math.min(parseInt(params.count || 10), 20);
+  const count = Math.min(parseInt(params.count || 20), 25);
 
   // API keys from environment variables only
   const serpApiKey = process.env.SERPAPI_API_KEY;
@@ -32,39 +113,8 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // PRIMARY: Try SerpApi first
-    const response = await getJson({
-      engine: "google_trends_trending_now",
-      geo: region,
-      hours: 24,
-      api_key: serpApiKey
-    });
-
-    const trendingSearches = response.trending_searches || [];
-
-    const trends = trendingSearches.slice(0, count).map((item, index) => {
-      const query = item.query || 'Unknown';
-      const searchVolume = item.search_volume || 0;
-      const increasePercentage = item.increase_percentage || 0;
-
-      const volume = Math.min(100, Math.max(20, Math.floor((searchVolume / 10000) * 20) + 80 - (index * 3)));
-      const velocity = Math.min(100, Math.max(-100, Math.floor((increasePercentage / 10)) - 50));
-
-      const category = item.categories && item.categories.length > 0
-        ? item.categories[0].name
-        : categorizeQuery(query);
-
-      return {
-        query: query,
-        volume: volume,
-        velocity: velocity,
-        category: category,
-        rank: index + 1,
-        searchVolume: searchVolume,
-        increasePercentage: increasePercentage,
-        active: item.active || false
-      };
-    });
+    // Fetch from multiple regions for global trends
+    const globalTrends = await fetchGlobalTrends(serpApiKey, count);
 
     return {
       statusCode: 200,
@@ -75,11 +125,12 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Methods': 'GET, OPTIONS'
       },
       body: JSON.stringify({
-        trends: trends,
+        trends: globalTrends.trends,
         timestamp: new Date().toISOString(),
-        region: region,
-        source: 'serpapi_google_trends',
-        count: trends.length,
+        region: 'GLOBAL',
+        source: 'serpapi_google_trends_multi_region',
+        count: globalTrends.trends.length,
+        regions_fetched: globalTrends.regions,
         quota_info: {
           provider: 'SerpApi',
           tier: 'free_tier_250_monthly'
@@ -92,7 +143,7 @@ exports.handler = async function(event, context) {
 
     // FALLBACK: Use NewsAPI if SerpApi fails
     try {
-      const newsData = await fetchNewsAPI(region, count, newsApiKey);
+      const newsData = await fetchNewsAPI('US', count, newsApiKey);
       const articles = newsData.articles || [];
 
       const trends = articles.slice(0, count).map((article, index) => {
@@ -122,7 +173,7 @@ exports.handler = async function(event, context) {
         body: JSON.stringify({
           trends: trends,
           timestamp: new Date().toISOString(),
-          region: region,
+          region: 'US',
           source: 'newsapi_fallback',
           count: trends.length,
           quota_info: {
@@ -146,8 +197,7 @@ exports.handler = async function(event, context) {
           error: newsError.message,
           serpApiError: serpError.message,
           message: 'Failed to fetch data from both SerpApi and NewsAPI',
-          timestamp: new Date().toISOString(),
-          region: region
+          timestamp: new Date().toISOString()
         })
       };
     }

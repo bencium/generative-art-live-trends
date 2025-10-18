@@ -1,6 +1,6 @@
 [build]
-  # Temporarily skip WASM build to test Python function
-  command = "echo 'Skipping WASM build for now'"
+  # Build WASM module before deploying
+  command = "curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && cd trends-wasm && wasm-pack build --target web"
 
   # Publish directory
   publish = "."
@@ -21,13 +21,13 @@
 # Default index page
 [[redirects]]
   from = "/"
-  to = "/search_currents.html"
+  to = "/search_currents_wasm.html"
   status = 200
 
 # SPA fallback (if needed)
 [[redirects]]
   from = "/*"
-  to = "/search_currents.html"
+  to = "/search_currents_wasm.html"
   status = 404
 
 # Headers for CORS and caching
