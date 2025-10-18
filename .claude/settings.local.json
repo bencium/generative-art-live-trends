@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:www.confident-ai.com)",
+      "WebFetch(domain:github.com)",
+      "Skill(example-skills:slack-gif-creator)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Skill(example-skills:canvas-design)",
+      "Read(//Users/bencium/.claude/plugins/marketplaces/anthropic-agent-skills/canvas-design/canvas-fonts/**)",
+      "Skill(example-skills:algorithmic-art)",
+      "Read(//Users/bencium/.claude/plugins/marketplaces/anthropic-agent-skills/algorithmic-art/templates/**)",
+      "Skill(example-skills:theme-factory)",
+      "Read(//Users/bencium/.claude/plugins/marketplaces/anthropic-agent-skills/theme-factory/**)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_close",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(cargo init:*)",
+      "Bash(wasm-pack build:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(test:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

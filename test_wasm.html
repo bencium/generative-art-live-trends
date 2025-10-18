@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Module Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        h1 {
+            color: #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            background: #0a0a0a;
+        }
+        .test-section h2 {
+            color: #00aaff;
+            margin-top: 0;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .output {
+            margin-top: 15px;
+            padding: 15px;
+            background: #000;
+            border: 1px solid #333;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #00ff00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .info {
+            color: #00aaff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🦀 Rust WASM Module Test Console</h1>
+
+    <div class="test-section">
+        <h2>📦 Module Loading</h2>
+        <div id="load-status" class="output">Waiting to load WASM module...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test 1: Generate Mock Trends</h2>
+        <button onclick="testMockTrends()">Run Test</button>
+        <div id="test1-output" class="output">Click button to test mock data generation</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test 2: Process Trends Data</h2>
+        <button onclick="testProcessTrends()">Run Test</button>
+        <div id="test2-output" class="output">Click button to test data processing</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test 3: Calculate Visual Parameters</h2>
+        <button onclick="testVisualParams()">Run Test</button>
+        <div id="test3-output" class="output">Click button to test visual parameter calculation</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test 4: Fetch Live Trends (RSS)</h2>
+        <button onclick="testLiveTrends()">Run Test</button>
+        <div id="test4-output" class="output">Click button to test Google Trends RSS fetching</div>
+    </div>
+
+    <script type="module">
+        import init, {
+            generate_mock_trends,
+            process_trends,
+            calculate_visual_params,
+            TrendsClient
+        } from './trends-wasm/pkg/trends_wasm.js';
+
+        // Global reference for tests
+        window.wasmModule = {
+            generate_mock_trends,
+            process_trends,
+            calculate_visual_params,
+            TrendsClient
+        };
+
+        // Initialize WASM
+        const loadStatus = document.getElementById('load-status');
+
+        try {
+            loadStatus.innerHTML = '<span class="info">⏳ Loading WASM module...</span>';
+            await init();
+            loadStatus.innerHTML = '<span class="success">✅ WASM module loaded successfully!</span>\n' +
+                                  '<span class="info">Module exports:</span>\n' +
+                                  '  - generate_mock_trends()\n' +
+                                  '  - process_trends()\n' +
+                                  '  - calculate_visual_params()\n' +
+                                  '  - TrendsClient';
+
+            // Auto-run first test as demo
+            setTimeout(() => testMockTrends(), 500);
+        } catch (error) {
+            loadStatus.innerHTML = `<span class="error">❌ Failed to load WASM module</span>\n${error.message}`;
+        }
+
+        // Test functions
+        window.testMockTrends = function() {
+            const output = document.getElementById('test1-output');
+            try {
+                output.innerHTML = '<span class="info">⏳ Generating mock trends...</span>';
+
+                const mockData = window.wasmModule.generate_mock_trends(10);
+
+                output.innerHTML = '<span class="success">✅ Mock trends generated successfully!</span>\n\n' +
+                                  `<span class="info">Data structure:</span>\n${JSON.stringify(mockData, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Test failed</span>\n${error.message}`;
+            }
+        };
+
+        window.testProcessTrends = function() {
+            const output = document.getElementById('test2-output');
+            try {
+                output.innerHTML = '<span class="info">⏳ Processing trends data...</span>';
+
+                // Generate mock data first
+                const mockData = window.wasmModule.generate_mock_trends(8);
+                output.innerHTML = '<span class="info">Input data:</span>\n' +
+                                  JSON.stringify(mockData, null, 2) + '\n\n' +
+                                  '<span class="info">⏳ Processing...</span>';
+
+                // Process it
+                const processed = window.wasmModule.process_trends(mockData);
+
+                output.innerHTML = '<span class="success">✅ Data processed successfully!</span>\n\n' +
+                                  '<span class="info">Processed data (normalized & sorted):</span>\n' +
+                                  JSON.stringify(processed, null, 2);
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Test failed</span>\n${error.message}`;
+            }
+        };
+
+        window.testVisualParams = function() {
+            const output = document.getElementById('test3-output');
+            try {
+                output.innerHTML = '<span class="info">⏳ Calculating visual parameters...</span>';
+
+                const testCases = [
+                    { volume: 100, velocity: 50, desc: 'High volume, rising fast' },
+                    { volume: 50, velocity: -30, desc: 'Medium volume, falling' },
+                    { volume: 80, velocity: 5, desc: 'High volume, stable' },
+                ];
+
+                let results = '<span class="success">✅ Visual parameters calculated!</span>\n\n';
+
+                testCases.forEach(test => {
+                    const params = window.wasmModule.calculate_visual_params(test.volume, test.velocity);
+                    results += `<span class="info">${test.desc}</span>\n`;
+                    results += `  Input: volume=${test.volume}, velocity=${test.velocity}\n`;
+                    results += `  Output: ${JSON.stringify(params, null, 2)}\n\n`;
+                });
+
+                output.innerHTML = results;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Test failed</span>\n${error.message}`;
+            }
+        };
+
+        window.testLiveTrends = async function() {
+            const output = document.getElementById('test4-output');
+            try {
+                output.innerHTML = '<span class="info">⏳ Fetching live Google Trends...</span>\n' +
+                                  '<span class="info">Endpoint: https://trends.google.com/trends/trendingsearches/daily/rss?geo=US</span>\n\n';
+
+                const client = new window.wasmModule.TrendsClient("US");
+                const data = await client.fetch_daily_trends();
+
+                output.innerHTML = '<span class="success">✅ Live trends fetched successfully!</span>\n\n' +
+                                  '<span class="info">Response data:</span>\n' +
+                                  JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Test failed (this is expected due to CORS)</span>\n\n` +
+                                  `<span class="info">Error details:</span>\n${error.message}\n\n` +
+                                  `<span class="info">Note:</span> Google Trends RSS may block cross-origin requests.\n` +
+                                  `Solutions:\n` +
+                                  `  1. Use CORS proxy\n` +
+                                  `  2. Deploy to same origin\n` +
+                                  `  3. Use mock data for development`;
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Depths - Theme Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1faee;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Slide 1: Title Slide */
+        .slide {
+            background: #1a2332;
+            color: #f1faee;
+            padding: 80px;
+            margin-bottom: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide h1 {
+            font-family: Georgia, serif;
+            font-size: 72px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2d8b8b;
+        }
+
+        .slide h2 {
+            font-family: Georgia, serif;
+            font-size: 36px;
+            font-weight: normal;
+            margin-bottom: 40px;
+            color: #a8dadc;
+        }
+
+        .slide p {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #f1faee;
+        }
+
+        /* Slide 2: Content Slide */
+        .slide.content {
+            background: #f1faee;
+            color: #1a2332;
+        }
+
+        .slide.content h2 {
+            font-size: 48px;
+            color: #1a2332;
+            border-bottom: 4px solid #2d8b8b;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        .slide.content h3 {
+            font-size: 28px;
+            color: #2d8b8b;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .slide.content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .slide.content li {
+            font-size: 20px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .slide.content li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #2d8b8b;
+            font-weight: bold;
+        }
+
+        /* Slide 3: Data Slide */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .stat-card {
+            background: #a8dadc;
+            padding: 40px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 64px;
+            font-weight: bold;
+            color: #1a2332;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 18px;
+            color: #1a2332;
+            opacity: 0.8;
+        }
+
+        .theme-info {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .theme-info h3 {
+            font-family: Georgia, serif;
+            color: #1a2332;
+            margin-bottom: 20px;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .color-swatch {
+            flex: 1;
+            height: 100px;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            padding: 10px;
+            color: white;
+            font-size: 12px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Title Slide -->
+        <div class="slide">
+            <h1>Corporate Quarterly Review</h1>
+            <h2>Professional and calming maritime theme</h2>
+            <p>Demonstrating the <strong>Ocean Depths</strong> theme with professional presentation content</p>
+        </div>
+
+        <!-- Content Slide -->
+        <div class="slide content">
+            <h2>Key Objectives</h2>
+
+            <h3>Strategic Priorities</h3>
+            <ul>
+                <li>Drive innovation and sustainable growth</li>
+                <li>Enhance customer experience across all touchpoints</li>
+                <li>Build high-performing teams with clear accountability</li>
+                <li>Leverage data-driven insights for decision making</li>
+            </ul>
+
+            <h3>Success Metrics</h3>
+            <ul>
+                <li>Quarterly revenue growth targets exceeded</li>
+                <li>Customer satisfaction scores above 90%</li>
+                <li>Team engagement and retention rates improved</li>
+            </ul>
+        </div>
+
+        <!-- Stats Slide -->
+        <div class="slide content">
+            <h2>Performance Highlights</h2>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">247%</div>
+                    <div class="stat-label">Growth Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">15K+</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">98%</div>
+                    <div class="stat-label">Satisfaction</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Info -->
+        <div class="theme-info">
+            <h3>Ocean Depths Theme Specifications</h3>
+            <p><strong>Description:</strong> Professional and calming maritime theme</p>
+            <p style="margin-top: 10px;"><strong>Header Font:</strong> Georgia, serif</p>
+            <p><strong>Body Font:</strong> Arial, sans-serif</p>
+
+            <div class="color-palette">
+                <div class="color-swatch" style="background: #1a2332;">
+                    #1a2332
+                </div>
+                <div class="color-swatch" style="background: #2d8b8b;">
+                    #2d8b8b
+                </div>
+                <div class="color-swatch" style="background: #a8dadc;">
+                    #a8dadc
+                </div>
+                <div class="color-swatch" style="background: #f1faee; color: black;">
+                    #f1faee
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

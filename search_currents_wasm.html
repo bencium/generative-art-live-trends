@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<!--
+    SEARCH CURRENTS - WASM INTEGRATED VERSION
+    Live Google Trends Visualization with Rust + WebAssembly backend
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Currents - Google Trends Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: calc(100vh - 40px);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 26px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 13px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .wasm-status {
+            font-size: 11px;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            background: var(--anthropic-light);
+        }
+
+        .wasm-status.loaded {
+            border-left: 3px solid var(--anthropic-green);
+        }
+
+        .wasm-status.loading {
+            border-left: 3px solid var(--anthropic-orange);
+        }
+
+        .wasm-status.error {
+            border-left: 3px solid #d75757;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 28px;
+        }
+
+        .control-section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Data Status */
+        .data-status {
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--anthropic-green);
+        }
+
+        .data-status.loading {
+            border-left-color: var(--anthropic-orange);
+        }
+
+        .data-status.error {
+            border-left-color: #d75757;
+        }
+
+        .trend-item {
+            font-size: 11px;
+            padding: 4px 0;
+            color: var(--anthropic-mid-gray);
+        }
+
+        .trend-item strong {
+            color: var(--anthropic-dark);
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 11px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-bottom: 10px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 7px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: var(--anthropic-mid-gray);
+            min-width: 55px;
+            text-align: right;
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 9px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--anthropic-mid-gray);
+            height: 600px;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>Search Currents</h1>
+            <div class="subtitle">Algorithmic visualization of collective attention flowing through Google Trends data</div>
+
+            <!-- WASM Status -->
+            <div class="wasm-status loading" id="wasm-status">
+                ⏳ Loading Rust+WASM module...
+            </div>
+
+            <!-- Data Source Section -->
+            <div class="control-section">
+                <h3>Data Source</h3>
+                <div class="data-status" id="data-status">
+                    <div id="status-text">WASM module loading...</div>
+                    <div id="trends-list"></div>
+                </div>
+                <div class="button-row">
+                    <button class="button secondary" onclick="fetchMockData()">📊 Mock Data</button>
+                    <button class="button" onclick="fetchLiveData()">🌐 Live RSS</button>
+                </div>
+            </div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Field Parameters</h3>
+
+                <div class="control-group">
+                    <label>Trend Influence</label>
+                    <div class="slider-container">
+                        <input type="range" id="trendInfluence" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateParam('trendInfluence', this.value)">
+                        <span class="value-display" id="trendInfluence-value">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Noise Scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.001" max="0.015" step="0.001" value="0.005" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.005</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Particle Count</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="1000" max="15000" step="500" value="6000" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">6000</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Trail Memory</label>
+                    <div class="slider-container">
+                        <input type="range" id="trailDecay" min="1" max="30" step="1" value="8" oninput="updateParam('trailDecay', this.value)">
+                        <span class="value-display" id="trailDecay-value">8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Flow Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowSpeed" min="0.1" max="3.0" step="0.1" value="0.7" oninput="updateParam('flowSpeed', this.value)">
+                        <span class="value-display" id="flowSpeed-value">0.7</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Color Temperature</label>
+                    <div class="slider-container">
+                        <input type="range" id="colorSensitivity" min="0.3" max="2.0" step="0.1" value="1.0" oninput="updateParam('colorSensitivity', this.value)">
+                        <span class="value-display" id="colorSensitivity-value">1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="regenerate()">Regenerate</button>
+                    <button class="button secondary" onclick="resetParameters()">Reset</button>
+                </div>
+                <button class="button tertiary" onclick="downloadCanvas()" style="margin-top: 8px;">⬇ Download PNG</button>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Search Currents...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ═══════════════════════════════════════════════════════════════════════
+        // WASM INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════════
+
+        import init, {
+            generate_mock_trends,
+            process_trends,
+            calculate_visual_params,
+            TrendsClient
+        } from './trends-wasm/pkg/trends_wasm.js';
+
+        let wasmLoaded = false;
+        let wasmModule = {};
+
+        // Initialize WASM
+        const wasmStatus = document.getElementById('wasm-status');
+        const dataStatus = document.getElementById('data-status');
+        const statusText = document.getElementById('status-text');
+
+        try {
+            await init();
+            wasmModule = {
+                generate_mock_trends,
+                process_trends,
+                calculate_visual_params,
+                TrendsClient
+            };
+            wasmLoaded = true;
+
+            wasmStatus.className = 'wasm-status loaded';
+            wasmStatus.textContent = '✅ Rust+WASM module ready';
+
+            statusText.textContent = 'WASM loaded. Click "Mock Data" or "Live RSS" to fetch trends.';
+
+            console.log('✅ WASM module loaded successfully');
+        } catch (error) {
+            wasmStatus.className = 'wasm-status error';
+            wasmStatus.textContent = '❌ WASM failed to load: ' + error.message;
+
+            statusText.textContent = 'WASM load error. Using fallback mock data.';
+
+            console.error('Failed to load WASM:', error);
+        }
+
+        // Make functions globally accessible for onclick handlers
+        window.wasmModule = wasmModule;
+        window.wasmLoaded = wasmLoaded;
+    </script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // PARAMETERS & STATE
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 12345,
+            trendInfluence: 1.0,
+            noiseScale: 0.005,
+            particleCount: 6000,
+            trailDecay: 8,
+            flowSpeed: 0.7,
+            colorSensitivity: 1.0
+        };
+
+        let defaultParams = {...params};
+
+        let trendsData = {
+            trends: [],
+            timestamp: null,
+            loaded: false
+        };
+
+        let particles = [];
+        let flowField = [];
+        let cols, rows;
+        let scl = 12;
+        let fadeAlpha;
+
+        // Cache for offline viewing
+        const CACHE_KEY = 'search_currents_cache';
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DATA FETCHING
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function fetchMockData() {
+            const statusEl = document.getElementById('data-status');
+            const statusText = document.getElementById('status-text');
+            const trendsList = document.getElementById('trends-list');
+
+            statusEl.classList.add('loading');
+            statusText.textContent = 'Generating mock trends via WASM...';
+            trendsList.innerHTML = '';
+
+            try {
+                if (!window.wasmLoaded) {
+                    throw new Error('WASM module not loaded');
+                }
+
+                const wasmData = window.wasmModule.generate_mock_trends(12);
+                const processed = window.wasmModule.process_trends(wasmData);
+
+                trendsData = {
+                    trends: processed.trends,
+                    timestamp: processed.timestamp,
+                    region: processed.region,
+                    loaded: true
+                };
+
+                // Save to cache
+                saveTrendsToCache(trendsData);
+
+                statusEl.classList.remove('loading');
+                statusText.textContent = `✅ Loaded ${trendsData.trends.length} mock trends via WASM`;
+
+                trendsList.innerHTML = trendsData.trends.slice(0, 6).map(t =>
+                    `<div class="trend-item"><strong>${t.query}</strong> (Vol: ${t.volume}, Vel: ${t.velocity > 0 ? '+' : ''}${t.velocity})</div>`
+                ).join('');
+
+                if (typeof initializeSystem === 'function') {
+                    initializeSystem();
+                }
+            } catch (error) {
+                statusEl.classList.remove('loading');
+                statusEl.classList.add('error');
+                statusText.textContent = '❌ Error: ' + error.message;
+                console.error('Mock data fetch error:', error);
+            }
+        }
+
+        async function fetchLiveData() {
+            const statusEl = document.getElementById('data-status');
+            const statusText = document.getElementById('status-text');
+            const trendsList = document.getElementById('trends-list');
+
+            statusEl.classList.add('loading');
+            statusText.textContent = 'Fetching live Google Trends RSS...';
+            trendsList.innerHTML = '';
+
+            try {
+                if (!window.wasmLoaded) {
+                    throw new Error('WASM module not loaded');
+                }
+
+                const client = new window.wasmModule.TrendsClient("US");
+                const wasmData = await client.fetch_daily_trends();
+
+                trendsData = {
+                    trends: wasmData.trends,
+                    timestamp: wasmData.timestamp,
+                    region: wasmData.region,
+                    loaded: true
+                };
+
+                // Save to cache
+                saveTrendsToCache(trendsData);
+
+                statusEl.classList.remove('loading');
+                statusText.textContent = `✅ Loaded ${trendsData.trends.length} live trends from Google`;
+
+                trendsList.innerHTML = trendsData.trends.slice(0, 6).map(t =>
+                    `<div class="trend-item"><strong>${t.query}</strong> (${t.category})</div>`
+                ).join('');
+
+                if (typeof initializeSystem === 'function') {
+                    initializeSystem();
+                }
+            } catch (error) {
+                statusEl.classList.remove('loading');
+                statusEl.classList.add('error');
+                statusText.textContent = '❌ CORS Error: Trying cached data...';
+
+                // Try loading from cache
+                const cached = loadTrendsFromCache();
+                if (cached) {
+                    trendsData = cached;
+                    statusText.textContent = `📦 Using cached data (${trendsData.trends.length} trends)`;
+                    trendsList.innerHTML = trendsData.trends.slice(0, 6).map(t =>
+                        `<div class="trend-item"><strong>${t.query}</strong></div>`
+                    ).join('');
+
+                    if (typeof initializeSystem === 'function') {
+                        initializeSystem();
+                    }
+                } else {
+                    statusText.textContent = '❌ CORS blocked. Use "Mock Data" or check console.';
+                }
+
+                console.error('Live fetch error (CORS expected):', error);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CACHE MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function saveTrendsToCache(data) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+                console.log('💾 Trends saved to cache');
+            } catch (error) {
+                console.warn('Failed to save to cache:', error);
+            }
+        }
+
+        function loadTrendsFromCache() {
+            try {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    console.log('📦 Loading trends from cache');
+                    return JSON.parse(cached);
+                }
+            } catch (error) {
+                console.warn('Failed to load from cache:', error);
+            }
+            return null;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS SETUP & DRAW (Same as original)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function setup() {
+            let canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+
+            // Try loading cached data on startup
+            const cached = loadTrendsFromCache();
+            if (cached) {
+                trendsData = cached;
+                const statusText = document.getElementById('status-text');
+                statusText.textContent = `📦 Loaded ${trendsData.trends.length} cached trends`;
+
+                const trendsList = document.getElementById('trends-list');
+                trendsList.innerHTML = trendsData.trends.slice(0, 6).map(t =>
+                    `<div class="trend-item"><strong>${t.query}</strong></div>`
+                ).join('');
+            }
+
+            initializeSystem();
+
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            particles = [];
+            fadeAlpha = map(params.trailDecay, 1, 30, 40, 3);
+
+            for (let i = 0; i < params.particleCount; i++) {
+                particles.push(new Particle());
+            }
+
+            cols = floor(width / scl);
+            rows = floor(height / scl);
+
+            generateFlowField();
+            background(250, 249, 245);
+        }
+
+        function generateFlowField() {
+            flowField = [];
+            let zoff = 0;
+
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    let index = x + y * cols;
+                    let angle = noise(x * params.noiseScale, y * params.noiseScale, zoff) * TWO_PI * 4;
+
+                    if (trendsData.loaded && trendsData.trends.length > 0) {
+                        trendsData.trends.forEach(trend => {
+                            let trendX = (trend.query.charCodeAt(0) * 37 + trend.query.length * 13) % cols;
+                            let trendY = (trend.query.charCodeAt(trend.query.length - 1) * 29) % rows;
+
+                            let dist = Math.sqrt(Math.pow(x - trendX, 2) + Math.pow(y - trendY, 2));
+                            let influence = (trend.volume / 100) * params.trendInfluence;
+
+                            if (dist < 30) {
+                                let vortexAngle = atan2(y - trendY, x - trendX);
+                                let vortexStrength = (1 - dist / 30) * influence;
+                                vortexAngle += (trend.velocity > 0 ? 1 : -1) * vortexStrength;
+                                angle += vortexAngle * 0.3;
+                            }
+                        });
+                    }
+
+                    let v = p5.Vector.fromAngle(angle);
+                    v.setMag(params.flowSpeed);
+                    flowField[index] = v;
+                }
+            }
+        }
+
+        function draw() {
+            fill(250, 249, 245, fadeAlpha);
+            noStroke();
+            rect(0, 0, width, height);
+
+            for (let particle of particles) {
+                particle.follow(flowField);
+                particle.update();
+                particle.edges();
+                particle.show();
+            }
+        }
+
+        class Particle {
+            constructor() {
+                this.pos = createVector(random(width), random(height));
+                this.vel = createVector(0, 0);
+                this.acc = createVector(0, 0);
+                this.maxSpeed = 2;
+                this.prevPos = this.pos.copy();
+                this.trendIndex = trendsData.loaded ? floor(random(trendsData.trends.length)) : 0;
+                this.hue = 0;
+                this.sat = 0;
+                this.bri = 0;
+            }
+
+            follow(vectors) {
+                let x = floor(this.pos.x / scl);
+                let y = floor(this.pos.y / scl);
+                let index = x + y * cols;
+                let force = vectors[index];
+                if (force) this.applyForce(force);
+            }
+
+            applyForce(force) {
+                this.acc.add(force);
+            }
+
+            update() {
+                this.vel.add(this.acc);
+                this.vel.limit(this.maxSpeed);
+                this.pos.add(this.vel);
+                this.acc.mult(0);
+                this.updateColor();
+            }
+
+            updateColor() {
+                let speed = this.vel.mag();
+
+                if (trendsData.loaded && trendsData.trends.length > 0) {
+                    let trend = trendsData.trends[this.trendIndex];
+
+                    if (trend.velocity > 20) {
+                        this.hue = map(trend.velocity, 20, 100, 25, 45);
+                    } else if (trend.velocity < -20) {
+                        this.hue = map(trend.velocity, -100, -20, 0, 15);
+                    } else {
+                        this.hue = map(trend.velocity, -20, 20, 200, 240);
+                    }
+
+                    this.sat = map(trend.volume, 0, 100, 30, 90);
+                } else {
+                    this.hue = map(speed, 0, this.maxSpeed, 200, 30);
+                    this.sat = 70;
+                }
+
+                this.bri = map(speed, 0, this.maxSpeed, 40, 90);
+                this.hue *= params.colorSensitivity;
+                this.sat = constrain(this.sat * params.colorSensitivity, 0, 100);
+            }
+
+            show() {
+                colorMode(HSB, 360, 100, 100, 100);
+                stroke(this.hue, this.sat, this.bri, 60);
+                strokeWeight(1.2);
+                line(this.pos.x, this.pos.y, this.prevPos.x, this.prevPos.y);
+                this.updatePrev();
+                colorMode(RGB, 255);
+            }
+
+            updatePrev() {
+                this.prevPos.x = this.pos.x;
+                this.prevPos.y = this.pos.y;
+            }
+
+            edges() {
+                if (this.pos.x > width) { this.pos.x = 0; this.updatePrev(); }
+                if (this.pos.x < 0) { this.pos.x = width; this.updatePrev(); }
+                if (this.pos.y > height) { this.pos.y = 0; this.updatePrev(); }
+                if (this.pos.y < 0) { this.pos.y = height; this.updatePrev(); }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(`${paramName}-value`).textContent = value;
+
+            if (paramName === 'particleCount' || paramName === 'noiseScale' || paramName === 'trendInfluence') {
+                initializeSystem();
+            } else if (paramName === 'trailDecay') {
+                fadeAlpha = map(params.trailDecay, 1, 30, 40, 3);
+            }
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function regenerate() {
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+
+            Object.keys(params).forEach(key => {
+                if (key !== 'seed') {
+                    let el = document.getElementById(key);
+                    if (el) {
+                        el.value = params[key];
+                        let valueEl = document.getElementById(`${key}-value`);
+                        if (valueEl) valueEl.textContent = params[key];
+                    }
+                }
+            });
+
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function downloadCanvas() {
+            let timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            saveCanvas(`search-currents-${timestamp}`, 'png');
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
