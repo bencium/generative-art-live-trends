@@ -292,10 +292,39 @@
             height: 600px;
         }
 
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            border-top: 1px solid var(--anthropic-light-gray);
+            z-index: 1000;
+        }
+
+        .footer a {
+            color: var(--anthropic-orange);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .footer a:hover {
+            color: #c86641;
+            text-decoration: underline;
+        }
+
         /* Responsive */
         @media (max-width: 900px) {
             .container {
                 flex-direction: column;
+                padding-bottom: 60px;
             }
 
             .sidebar {
@@ -409,6 +438,11 @@
                 <div class="loading">Initializing Search Currents...</div>
             </div>
         </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Architecture & Design by <a href="https://www.bencium.io" target="_blank" rel="noopener noreferrer">bencium.io</a>
     </div>
 
     <script>
