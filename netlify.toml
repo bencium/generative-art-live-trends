@@ -8,6 +8,10 @@
   # Functions directory
   functions = "netlify/functions"
 
+# Auto-install function dependencies
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
 # Redirect rules
 [[redirects]]
   from = "/api/trends"
