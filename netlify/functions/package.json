@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "Serverless functions for Search Currents",
   "dependencies": {
-    "google-trends-api": "^4.9.2"
+    "serpapi": "^2.2.1"
   }
 }

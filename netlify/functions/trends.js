@@ -1,7 +1,8 @@
-// Google Trends API for Netlify Functions (Node.js)
-// Using dailyTrends() method for better reliability
+// Google Trends via SerpApi
+// Reliable, production-ready Google Trends data
+// Free tier: 250 searches/month
 
-const googleTrends = require('google-trends-api');
+const { getJson } = require('serpapi');
 
 exports.handler = async function(event, context) {
   // Parse query parameters
@@ -9,50 +10,61 @@ exports.handler = async function(event, context) {
   const region = (params.region || 'US').toUpperCase();
   const count = Math.min(parseInt(params.count || 10), 20);
 
+  // Get API key from environment variable
+  const apiKey = process.env.SERPAPI_API_KEY || '616a4be4884aa2982e781d7f37a6e0e6d32643f09dcbbdf5f4de2adc9b18d392';
+
   try {
-    // Try dailyTrends first (more reliable than realTimeTrends)
-    const results = await googleTrends.dailyTrends({
-      geo: region
+    // Fetch trending searches from SerpApi
+    const response = await getJson({
+      engine: "google_trends_trending_now",
+      geo: region,
+      hours: 24, // Last 24 hours
+      api_key: apiKey
     });
 
-    const data = JSON.parse(results);
-
-    // Extract trending searches from daily trends
-    const trendingSearches = data.default?.trendingSearchesDays?.[0]?.trendingSearches || [];
+    // Extract trending searches
+    const trendingSearches = response.trending_searches || [];
 
     // Process into our format
     const trends = trendingSearches.slice(0, count).map((item, index) => {
-      const title = item.title?.query || 'Unknown';
-      const traffic = item.formattedTraffic || '0';
+      const query = item.query || 'Unknown';
+      const searchVolume = item.search_volume || 0;
+      const increasePercentage = item.increase_percentage || 0;
 
-      // Parse traffic number (e.g., "50K+" -> 50000)
-      const trafficNum = parseTrafficString(traffic);
+      // Calculate volume (0-100 scale based on search volume)
+      const volume = Math.min(100, Math.max(20, Math.floor((searchVolume / 10000) * 20) + 80 - (index * 3)));
 
-      // Calculate volume (normalize traffic)
-      const volume = Math.min(100, Math.max(20, 100 - (index * 5)));
+      // Calculate velocity based on increase percentage
+      const velocity = Math.min(100, Math.max(-100, Math.floor((increasePercentage / 10)) - 50));
 
-      // Calculate velocity based on traffic
-      const velocity = Math.floor((trafficNum / 50000) * 100) - 30;
-
-      // Simple categorization
-      const category = categorizeQuery(title);
+      // Get category from SerpApi data
+      const category = item.categories && item.categories.length > 0
+        ? item.categories[0].name
+        : categorizeQuery(query);
 
       return {
-        query: title,
+        query: query,
         volume: volume,
-        velocity: Math.max(-100, Math.min(100, velocity)),
+        velocity: velocity,
         category: category,
-        rank: index + 1
+        rank: index + 1,
+        searchVolume: searchVolume,
+        increasePercentage: increasePercentage,
+        active: item.active || false
       };
     });
 
     // Build response
-    const response = {
+    const response_data = {
       trends: trends,
       timestamp: new Date().toISOString(),
       region: region,
-      source: 'google_trends_daily',
-      count: trends.length
+      source: 'serpapi_google_trends',
+      count: trends.length,
+      quota_info: {
+        provider: 'SerpApi',
+        tier: 'free_tier_250_monthly'
+      }
     };
 
     return {
@@ -63,101 +75,36 @@ exports.handler = async function(event, context) {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'GET, OPTIONS'
       },
-      body: JSON.stringify(response)
+      body: JSON.stringify(response_data)
     };
 
-  } catch (dailyError) {
-    console.error('dailyTrends error:', dailyError);
+  } catch (error) {
+    console.error('SerpApi error:', error);
 
-    // Fallback to realTimeTrends if dailyTrends fails
-    try {
-      const results = await googleTrends.realTimeTrends({
-        geo: region,
-        category: 'all'
-      });
-
-      const data = JSON.parse(results);
-      const trendingSearches = data.storySummaries || [];
-
-      const trends = trendingSearches.slice(0, count).map((story, index) => {
-        const title = story.title || 'Unknown';
-        const traffic = story.traffic || 0;
-
-        const volume = Math.min(100, Math.max(20, 100 - (index * 5)));
-        const velocity = Math.floor((traffic / 50000) * 100) - 30;
-        const category = categorizeQuery(title);
-
-        return {
-          query: title,
-          volume: volume,
-          velocity: Math.max(-100, Math.min(100, velocity)),
-          category: category,
-          rank: index + 1
-        };
-      });
-
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS'
-        },
-        body: JSON.stringify({
-          trends: trends,
-          timestamp: new Date().toISOString(),
-          region: region,
-          source: 'google_trends_realtime',
-          count: trends.length
-        })
-      };
-
-    } catch (realTimeError) {
-      console.error('realTimeTrends error:', realTimeError);
-
-      // Return error response without mock data
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          error: realTimeError.message,
-          dailyError: dailyError.message,
-          message: 'Failed to fetch Google Trends data from both dailyTrends and realTimeTrends',
-          timestamp: new Date().toISOString(),
-          region: region
-        })
-      };
-    }
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        error: error.message,
+        message: 'Failed to fetch Google Trends data from SerpApi',
+        timestamp: new Date().toISOString(),
+        region: region
+      })
+    };
   }
 };
 
-// Parse traffic string like "50K+", "2M+", "500+" to numbers
-function parseTrafficString(traffic) {
-  if (typeof traffic !== 'string') return 0;
-
-  const cleanTraffic = traffic.replace(/[+,]/g, '').toUpperCase();
-
-  if (cleanTraffic.includes('M')) {
-    return parseFloat(cleanTraffic) * 1000000;
-  } else if (cleanTraffic.includes('K')) {
-    return parseFloat(cleanTraffic) * 1000;
-  } else {
-    return parseInt(cleanTraffic) || 0;
-  }
-}
-
-// Categorize query based on keywords
+// Fallback categorization (if SerpApi doesn't provide category)
 function categorizeQuery(query) {
   const queryLower = query.toLowerCase();
 
   const techKeywords = ['ai', 'tech', 'apple', 'google', 'microsoft', 'iphone', 'android', 'app', 'chatgpt', 'tesla', 'meta'];
   const newsKeywords = ['election', 'president', 'government', 'war', 'protest', 'vote', 'climate', 'politics', 'policy'];
   const entertainmentKeywords = ['movie', 'film', 'actor', 'singer', 'music', 'netflix', 'spotify', 'game', 'concert', 'album', 'tv', 'show'];
-  const sportsKeywords = ['nba', 'nfl', 'soccer', 'football', 'basketball', 'championship', 'olympics', 'world cup', 'league', 'match'];
+  const sportsKeywords = ['nba', 'nfl', 'soccer', 'football', 'basketball', 'championship', 'olympics', 'world cup', 'league', 'match', 'vs'];
 
   if (techKeywords.some(k => queryLower.includes(k))) return 'Technology';
   if (newsKeywords.some(k => queryLower.includes(k))) return 'News';
